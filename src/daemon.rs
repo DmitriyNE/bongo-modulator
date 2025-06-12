@@ -117,11 +117,11 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                     Some(true) => true,
                     Some(false) => {
                         error!(pid = pid.as_u32(), "failed to send signal");
-                        true
+                        false
                     }
                     None => {
                         error!("signal not supported");
-                        true
+                        false
                     }
                 }
             } else {
