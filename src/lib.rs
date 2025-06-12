@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
@@ -179,24 +179,7 @@ fn run_daemon() {
                                 let reply = {
                                     let mut idx = idx_ctrl.lock().unwrap();
                                     let entry = idx.entry(dir.clone()).or_default();
-                                    match std::fs::read_dir(&dir) {
-                                        Ok(rd) => {
-                                            let mut paths: Vec<PathBuf> = rd
-                                                .filter_map(|e| e.ok())
-                                                .filter(|e| e.path().is_file())
-                                                .map(|e| e.path())
-                                                .collect();
-                                            paths.sort();
-                                            if !paths.is_empty() {
-                                                let path = paths[*entry % paths.len()].clone();
-                                                *entry = (*entry + 1) % paths.len();
-                                                Some(path)
-                                            } else {
-                                                None
-                                            }
-                                        }
-                                        Err(_) => None,
-                                    }
+                                    pick_frame(&dir, entry)
                                 };
                                 if let Some(p) = reply {
                                     let _ = s.write_all(p.to_string_lossy().as_bytes());
@@ -219,6 +202,28 @@ fn run_daemon() {
         }
         let delay = fps.load(Ordering::Relaxed);
         std::thread::sleep(Duration::from_secs_f64(1.0 / delay as f64));
+    }
+}
+
+pub fn pick_frame(dir: &Path, index: &mut usize) -> Option<PathBuf> {
+    match std::fs::read_dir(dir) {
+        Ok(rd) => {
+            let mut paths: Vec<PathBuf> = rd
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().is_file())
+                .map(|e| e.path())
+                .collect();
+            paths.sort();
+            if paths.is_empty() {
+                error!("no frames found in {}", dir.display());
+                None
+            } else {
+                let path = paths[*index % paths.len()].clone();
+                *index = (*index + 1) % paths.len();
+                Some(path)
+            }
+        }
+        Err(_) => None,
     }
 }
 
