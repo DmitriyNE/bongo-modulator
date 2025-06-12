@@ -3,14 +3,13 @@ use clap::Parser;
 use proptest::prelude::*;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[derive(serde::Deserialize, Debug, PartialEq)]
 enum ControlMessage {
     SetFps(u32),
     EnableAi,
-    NextImage { dir: PathBuf },
+    NextImage,
 }
 
 proptest! {
@@ -20,6 +19,18 @@ proptest! {
         let cli = Cli::parse_from(&args);
         match cli.command {
             Commands::Mode { mode: ModeSubcommand::Fps { fps } } => prop_assert_eq!(fps, value),
+            _ => prop_assert!(false, "unexpected subcommand"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_dir(path in "[a-zA-Z0-9][a-zA-Z0-9/_\\.-]*") {
+        let args = ["bongo-modulator", "daemon", "--dir", &path];
+        let cli = Cli::parse_from(&args);
+        match cli.command {
+            Commands::Daemon { dir } => {
+                prop_assert_eq!(dir, Some(std::path::PathBuf::from(path)));
+            }
             _ => prop_assert!(false, "unexpected subcommand"),
         }
     }
@@ -59,17 +70,16 @@ fn next_image_uses_daemon() {
     let listener = UnixListener::bind(&socket).unwrap();
     let img_path = dir.path().join("img.png");
     let return_path = img_path.clone();
-    let server_dir = PathBuf::from("images");
     let handle = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
         let msg: ControlMessage = serde_json::from_reader(&mut stream).unwrap();
-        assert_eq!(msg, ControlMessage::NextImage { dir: server_dir });
+        assert_eq!(msg, ControlMessage::NextImage);
         stream
             .write_all(return_path.to_string_lossy().as_bytes())
             .unwrap();
     });
 
-    let result = bongo_modulator::next_image_path(PathBuf::from("images"));
+    let result = bongo_modulator::next_image_path();
     handle.join().unwrap();
     assert_eq!(result.unwrap(), img_path);
 }
