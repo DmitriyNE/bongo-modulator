@@ -37,6 +37,19 @@ proptest! {
     }
 
     #[test]
+    fn parse_daemon_process(name in "[a-zA-Z0-9][a-zA-Z0-9_-]*") {
+        let args = ["bongo-modulator", "daemon", "--process", &name];
+        let cli = Cli::parse_from(&args);
+        match cli.command {
+            Commands::Daemon { dir, process } => {
+                prop_assert!(dir.is_none());
+                prop_assert_eq!(process, name);
+            }
+            _ => prop_assert!(false, "unexpected subcommand"),
+        }
+    }
+
+    #[test]
     fn execute_sets_fps(value in 1u32..30) {
         let dir = tempdir().unwrap();
         std::env::set_var("BONGO_STATE_PATH", dir.path().join("state.json"));

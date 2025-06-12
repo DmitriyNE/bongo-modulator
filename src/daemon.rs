@@ -14,6 +14,21 @@ use std::{env, fs};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 use tracing::{debug, error, info, trace};
 
+fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
+    loop {
+        sys.refresh_processes(ProcessesToUpdate::All, false);
+        let pids: Vec<Pid> = sys
+            .processes_by_name(std::ffi::OsStr::new(name))
+            .map(|p| p.pid())
+            .collect();
+        if !pids.is_empty() {
+            return pids;
+        }
+        error!(proc = %name, "process not found; waiting");
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
 pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     if let Some(d) = dir {
         env::set_var("BONGO_IMAGE_DIR", &d);
@@ -86,20 +101,14 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     });
 
     let mut sys = System::new();
-    let mut pids: Vec<Pid> = Vec::new();
+    let mut pids = wait_for_process(&process, &mut sys);
 
     loop {
         trace!("signalling hyprlock");
         sys.refresh_processes(ProcessesToUpdate::All, false);
 
         if pids.is_empty() {
-            pids = sys
-                .processes_by_name(process.as_ref())
-                .map(|p| p.pid())
-                .collect();
-            if pids.is_empty() {
-                error!(proc = %process, "process not found");
-            }
+            pids = wait_for_process(&process, &mut sys);
         }
 
         pids.retain(|pid| {
