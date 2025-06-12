@@ -28,8 +28,9 @@ proptest! {
         let args = ["bongo-modulator", "daemon", "--dir", &path];
         let cli = Cli::parse_from(&args);
         match cli.command {
-            Commands::Daemon { dir } => {
+            Commands::Daemon { dir, process } => {
                 prop_assert_eq!(dir, Some(std::path::PathBuf::from(path)));
+                prop_assert_eq!(process, String::from("hyprlock"));
             }
             _ => prop_assert!(false, "unexpected subcommand"),
         }

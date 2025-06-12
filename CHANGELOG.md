@@ -7,3 +7,4 @@
 - State shared via `state.json` between CLI and daemon
 - CLI updates are sent to the daemon over a Unix socket
 - `next-image` retrieves frames from the daemon
+- Hyprlock process detection via `--process`

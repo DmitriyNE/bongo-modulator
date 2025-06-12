@@ -5,16 +5,16 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
 };
 use std::time::Duration;
 use std::{env, fs};
+use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 use tracing::{debug, error, info, trace};
 
-pub fn run_daemon(dir: Option<PathBuf>) {
+pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     if let Some(d) = dir {
         env::set_var("BONGO_IMAGE_DIR", &d);
         debug!(dir = %d.display(), "using custom image directory");
@@ -85,14 +85,41 @@ pub fn run_daemon(dir: Option<PathBuf>) {
         }
     });
 
+    let mut sys = System::new();
+    let mut pids: Vec<Pid> = Vec::new();
+
     loop {
         trace!("signalling hyprlock");
-        if let Err(e) = Command::new("pkill")
-            .args(["-SIGUSR2", "hyprlock"])
-            .status()
-        {
-            error!("failed to signal hyprlock: {e}");
+        sys.refresh_processes(ProcessesToUpdate::All, false);
+
+        if pids.is_empty() {
+            pids = sys
+                .processes_by_name(process.as_ref())
+                .map(|p| p.pid())
+                .collect();
+            if pids.is_empty() {
+                error!(proc = %process, "process not found");
+            }
         }
+
+        pids.retain(|pid| {
+            if let Some(proc_) = sys.process(*pid) {
+                match proc_.kill_with(Signal::User2) {
+                    Some(true) => true,
+                    Some(false) => {
+                        error!(pid = pid.as_u32(), "failed to send signal");
+                        true
+                    }
+                    None => {
+                        error!("signal not supported");
+                        true
+                    }
+                }
+            } else {
+                false
+            }
+        });
+
         let delay = fps.load(Ordering::Relaxed);
         trace!(fps = delay, "sleeping");
         std::thread::sleep(Duration::from_secs_f64(1.0 / delay as f64));
