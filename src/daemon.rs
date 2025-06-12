@@ -113,6 +113,9 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
 
         pids.retain(|pid| {
             if let Some(proc_) = sys.process(*pid) {
+                if proc_.name() != std::ffi::OsStr::new(&process) {
+                    return false;
+                }
                 match proc_.kill_with(Signal::User2) {
                     Some(true) => true,
                     Some(false) => {
