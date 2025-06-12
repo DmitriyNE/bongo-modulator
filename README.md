@@ -1,15 +1,19 @@
 # Bongo modulator
 
-This is a thingy that modulates bongo cat intensity on the hyprlock lockscreen.
-The bongo cat is displayed by hyprlocks image element. Since it does not support
-images, we use reload_cmd to give it a new frame of the bongo cat each update.
+This project modulates bongo cat intensity on the Hyprlock lockscreen.
 
-Thus, our bongo-modulator should perform 3 functions.
-1. Detect hyprlock presence and spam it with USR2 signals so it updates.
-2. Provide an endpoint to the hyprlock so it can ask for a next image.
-3. Modulate USR2 frequency based on different events.
-3.1. Manual mode, where i can specify fps from cmdline
-3.2. AI mode, where the cat is modulated by the number and closedness of people,
-     seen by a webcam.
+The daemon sends `SIGUSR2` to Hyprlock so it refreshes its image element.
+Hyprlock retrieves frames by running `bongo-modulator next-image` which outputs
+the path to a frame from the images directory.
 
-Project language is Rust.
+## Usage
+
+```bash
+bongo-modulator daemon       # start the signalling service
+bongo-modulator next-image   # print path to next frame
+bongo-modulator mode ai      # enable AI mode (stub)
+bongo-modulator mode fps 10  # set manual FPS
+```
+
+See `AGENTS.md` for contribution guidelines and `CHANGELOG.md` for release
+notes.
