@@ -6,13 +6,82 @@ use std::io::Write;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
 use std::time::Duration;
 use std::{env, fs};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 use tracing::{debug, error, info, trace};
+
+fn run_ai_controller(fps: Arc<Mutex<f32>>, enabled: Arc<AtomicBool>) {
+    std::thread::spawn(move || {
+        let mut cam = match videoio::VideoCapture::new(0, videoio::CAP_ANY) {
+            Ok(c) => c,
+            Err(e) => {
+                error!("failed to open camera: {e}");
+                return;
+            }
+        };
+        if !cam.is_opened().unwrap_or(false) {
+            error!("camera not opened");
+            return;
+        }
+
+        let cfg = env::var("BONGO_YOLO_CONFIG").unwrap_or_else(|_| "yolov3-tiny.cfg".into());
+        let weights =
+            env::var("BONGO_YOLO_WEIGHTS").unwrap_or_else(|_| "yolov3-tiny.weights".into());
+        let mut net = match dnn::read_net_from_darknet(&cfg, &weights) {
+            Ok(n) => n,
+            Err(e) => {
+                error!("failed to load YOLO model: {e}");
+                return;
+            }
+        };
+        let _ = net.set_preferable_backend(dnn::DNN_BACKEND_OPENCV);
+        let _ = net.set_preferable_target(dnn::DNN_TARGET_CPU);
+        let mut frame = core::Mat::default();
+        while enabled.load(Ordering::Relaxed) {
+            if cam.read(&mut frame).is_ok() && !frame.empty() {
+                if let Ok(blob) = dnn::blob_from_image(
+                    &frame,
+                    1.0 / 255.0,
+                    core::Size::new(416, 416),
+                    core::Scalar::default(),
+                    true,
+                    false,
+                    core::CV_32F,
+                ) {
+                    let _ = net.set_input(&blob, "", 1.0, core::Scalar::default());
+                    if let Ok(out_names) = net.get_unconnected_out_layers_names() {
+                        let mut outs = core::Vector::<core::Mat>::new();
+                        if net.forward(&mut outs, &out_names).is_ok() {
+                            let mut closeness = 0.0f32;
+                            for out in outs {
+                                for j in 0..out.rows() {
+                                    if let Ok(row) = out.at_row::<f32>(j) {
+                                        let conf = row[4];
+                                        if conf > 0.5 {
+                                            let area = (row[2] * row[3]).abs().max(1.0);
+                                            closeness += 500.0 / area;
+                                        }
+                                    }
+                                }
+                            }
+                            let mut new_fps = 5.0 + closeness;
+                            new_fps = new_fps.clamp(0.3, 30.0);
+                            if let Ok(mut val) = fps.lock() {
+                                *val = new_fps;
+                            }
+                        }
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    });
+}
+use opencv::{core, dnn, prelude::*, videoio};
 
 fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
     loop {
@@ -38,7 +107,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
 
     let cfg = load_config();
     debug!(fps = cfg.fps, ai_mode = cfg.ai_mode, "loaded configuration");
-    let fps = Arc::new(AtomicU32::new(cfg.fps.max(1)));
+    let fps = Arc::new(Mutex::new(cfg.fps.clamp(0.3, 30.0)));
     let ai_mode = Arc::new(AtomicBool::new(cfg.ai_mode));
 
     let sock_path = crate::ipc::socket_path();
@@ -71,11 +140,15 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                         match msg {
                             ControlMessage::SetFps(v) => {
                                 debug!(fps = v, "updating fps");
-                                fps_ctrl.store(v.max(1), Ordering::Relaxed)
+                                if let Ok(mut val) = fps_ctrl.lock() {
+                                    *val = v.clamp(0.3, 30.0);
+                                }
                             }
                             ControlMessage::EnableAi => {
                                 debug!("enabling AI mode");
-                                ai_ctrl.store(true, Ordering::Relaxed)
+                                if !ai_ctrl.swap(true, Ordering::Relaxed) {
+                                    run_ai_controller(fps_ctrl.clone(), ai_ctrl.clone());
+                                }
                             }
                             ControlMessage::NextImage => {
                                 trace!("next image requested");
@@ -99,6 +172,10 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
             }
         }
     });
+
+    if ai_mode.load(Ordering::Relaxed) {
+        run_ai_controller(fps.clone(), ai_mode.clone());
+    }
 
     let mut sys = System::new();
     let mut pids = wait_for_process(&process, &mut sys);
@@ -132,7 +209,13 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
             pids = wait_for_process(&process, &mut sys);
         }
 
-        let delay = fps.load(Ordering::Relaxed);
+        let delay = {
+            if let Ok(val) = fps.lock() {
+                *val
+            } else {
+                5.0
+            }
+        };
         trace!(fps = delay, "sleeping");
         std::thread::sleep(Duration::from_secs_f64(1.0 / delay as f64));
     }

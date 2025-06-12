@@ -20,9 +20,14 @@ so changes take effect immediately.
 bongo-modulator daemon       # start the signalling service
 bongo-modulator daemon --process hyprlock  # custom process name
 bongo-modulator next-image   # print path to next frame
-bongo-modulator mode ai      # enable AI mode (stub)
+bongo-modulator mode ai      # enable AI mode (uses YOLOv3)
 bongo-modulator mode fps 10  # set manual FPS
 ```
+
+AI detection expects OpenCV to be installed on the system. Model files can be
+specified with the `BONGO_YOLO_CONFIG` and `BONGO_YOLO_WEIGHTS` environment
+variables. When not set the daemon falls back to `yolov3-tiny.cfg` and
+`yolov3-tiny.weights` in the working directory.
 
 See `AGENTS.md` for contribution guidelines and `CHANGELOG.md` for release
 notes.

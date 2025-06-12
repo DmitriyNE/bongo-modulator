@@ -41,7 +41,7 @@ pub enum ModeSubcommand {
     /// Enable AI mode (stub)
     Ai,
     /// Set manual FPS
-    Fps { fps: u32 },
+    Fps { fps: f32 },
 }
 
 pub fn run_cli() {
@@ -83,10 +83,11 @@ fn enable_ai() {
     info!("AI mode enabled (stub)");
 }
 
-fn set_fps(fps: u32) {
+fn set_fps(fps: f32) {
+    let clamped = fps.clamp(0.3, 30.0);
     let mut cfg = load_config();
-    cfg.fps = fps;
+    cfg.fps = clamped;
     save_config(&cfg);
-    let _ = send_command(ControlMessage::SetFps(fps));
-    info!("manual fps set to {fps}");
+    let _ = send_command(ControlMessage::SetFps(clamped));
+    info!("manual fps set to {clamped}");
 }

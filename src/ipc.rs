@@ -7,7 +7,7 @@ use std::{env, io};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum ControlMessage {
-    SetFps(u32),
+    SetFps(f32),
     EnableAi,
     NextImage,
 }

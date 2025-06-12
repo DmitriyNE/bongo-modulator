@@ -7,18 +7,18 @@ use tempfile::tempdir;
 
 #[derive(serde::Deserialize, Debug, PartialEq)]
 enum ControlMessage {
-    SetFps(u32),
+    SetFps(f32),
     EnableAi,
     NextImage,
 }
 
 proptest! {
     #[test]
-    fn parse_fps(value in 0u32..1000) {
+    fn parse_fps(value in 0f32..1000.0) {
         let args = ["bongo-modulator", "mode", "fps", &value.to_string()];
         let cli = Cli::parse_from(&args);
         match cli.command {
-            Commands::Mode { mode: ModeSubcommand::Fps { fps } } => prop_assert_eq!(fps, value),
+            Commands::Mode { mode: ModeSubcommand::Fps { fps } } => prop_assert!((fps - value).abs() < f32::EPSILON),
             _ => prop_assert!(false, "unexpected subcommand"),
         }
     }
@@ -50,7 +50,7 @@ proptest! {
     }
 
     #[test]
-    fn execute_sets_fps(value in 1u32..30) {
+    fn execute_sets_fps(value in 1f32..30.0) {
         let dir = tempdir().unwrap();
         std::env::set_var("BONGO_STATE_PATH", dir.path().join("state.json"));
         let socket = dir.path().join("sock");
@@ -70,8 +70,8 @@ proptest! {
         execute(cli);
 
         let received = handle.join().unwrap();
-        prop_assert_eq!(received, ControlMessage::SetFps(value));
-        prop_assert_eq!(current_fps(), value);
+        prop_assert!(matches!(received, ControlMessage::SetFps(v) if (v - value).abs() < f32::EPSILON));
+        prop_assert!((current_fps() - value).abs() < f32::EPSILON);
     }
 }
 
