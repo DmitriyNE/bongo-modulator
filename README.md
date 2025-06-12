@@ -2,9 +2,11 @@
 
 This project modulates bongo cat intensity on the Hyprlock lockscreen.
 
-The daemon sends `SIGUSR2` to Hyprlock so it refreshes its image element.
-Hyprlock retrieves frames by running `bongo-modulator next-image` which outputs
-the path to a frame from the images directory.
+The daemon periodically sends `SIGUSR2` to Hyprlock so it refreshes its image
+element. Hyprlock retrieves frames by running `bongo-modulator next-image`
+which requests the next frame from the daemon over the Unix socket.
+Configuration is persisted in `state.json` and updates are sent to the daemon
+so changes take effect immediately.
 
 ## Usage
 
