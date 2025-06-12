@@ -23,6 +23,9 @@ pub enum Commands {
         /// Directory containing frames
         #[arg(short, long)]
         dir: Option<PathBuf>,
+        /// Hyprlock process name
+        #[arg(long, default_value = "hyprlock")]
+        process: String,
     },
     /// Print the path to the next image
     NextImage,
@@ -49,7 +52,7 @@ pub fn run_cli() {
 
 pub fn execute(cli: Cli) {
     match cli.command {
-        Commands::Daemon { dir } => run_daemon(dir),
+        Commands::Daemon { dir, process } => run_daemon(dir, process),
         Commands::NextImage => next_image(),
         Commands::Mode { mode } => match mode {
             ModeSubcommand::Ai => enable_ai(),
