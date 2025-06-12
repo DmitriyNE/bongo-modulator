@@ -50,11 +50,17 @@ fn socket_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/tmp/bongo.sock"))
 }
 
+fn image_dir() -> PathBuf {
+    env::var_os("BONGO_IMAGE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("images"))
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 enum ControlMessage {
     SetFps(u32),
     EnableAi,
-    NextImage { dir: PathBuf },
+    NextImage,
 }
 fn send_command(msg: ControlMessage) -> std::io::Result<Option<String>> {
     let path = socket_path();
@@ -64,7 +70,7 @@ fn send_command(msg: ControlMessage) -> std::io::Result<Option<String>> {
             stream.flush()?;
             let _ = stream.shutdown(Shutdown::Write);
 
-            if matches!(msg, ControlMessage::NextImage { .. }) {
+            if matches!(msg, ControlMessage::NextImage) {
                 let mut buf = String::new();
                 stream.read_to_string(&mut buf)?;
                 Ok(Some(buf))
@@ -105,13 +111,13 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Run the signalling service
-    Daemon,
-    /// Print the path to the next image
-    NextImage {
+    Daemon {
         /// Directory containing frames
-        #[arg(short, long, default_value = "images")]
-        dir: PathBuf,
+        #[arg(short, long)]
+        dir: Option<PathBuf>,
     },
+    /// Print the path to the next image
+    NextImage,
     /// Configure operation mode
     Mode {
         #[command(subcommand)]
@@ -135,8 +141,8 @@ pub fn run_cli() {
 
 pub fn execute(cli: Cli) {
     match cli.command {
-        Commands::Daemon => run_daemon(),
-        Commands::NextImage { dir } => next_image(dir),
+        Commands::Daemon { dir } => run_daemon(dir),
+        Commands::NextImage => next_image(),
         Commands::Mode { mode } => match mode {
             ModeSubcommand::Ai => enable_ai(),
             ModeSubcommand::Fps { fps } => set_fps(fps),
@@ -144,7 +150,10 @@ pub fn execute(cli: Cli) {
     }
 }
 
-fn run_daemon() {
+fn run_daemon(dir: Option<PathBuf>) {
+    if let Some(d) = dir {
+        env::set_var("BONGO_IMAGE_DIR", &d);
+    }
     info!("daemon started");
 
     let cfg = load_config();
@@ -175,7 +184,8 @@ fn run_daemon() {
                                 fps_ctrl.store(v.max(1), Ordering::Relaxed)
                             }
                             ControlMessage::EnableAi => ai_ctrl.store(true, Ordering::Relaxed),
-                            ControlMessage::NextImage { dir } => {
+                            ControlMessage::NextImage => {
+                                let dir = image_dir();
                                 let reply = {
                                     let mut idx = idx_ctrl.lock().unwrap();
                                     let entry = idx.entry(dir.clone()).or_default();
@@ -227,15 +237,15 @@ pub fn pick_frame(dir: &Path, index: &mut usize) -> Option<PathBuf> {
     }
 }
 
-pub fn next_image_path(dir: PathBuf) -> Option<PathBuf> {
-    match send_command(ControlMessage::NextImage { dir }) {
+pub fn next_image_path() -> Option<PathBuf> {
+    match send_command(ControlMessage::NextImage) {
         Ok(Some(p)) if !p.is_empty() => Some(PathBuf::from(p)),
         _ => None,
     }
 }
 
-fn next_image(dir: PathBuf) {
-    match next_image_path(dir) {
+fn next_image() {
+    match next_image_path() {
         Some(path) => println!("{}", path.display()),
         None => error!("daemon did not return an image"),
     }
