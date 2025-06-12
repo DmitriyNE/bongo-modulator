@@ -1,4 +1,4 @@
-use bongo_modulator::{current_fps, execute, Cli, Commands, ModeSubcommand};
+use bongo_modulator::{current_fps, execute, pick_frame, Cli, Commands, ModeSubcommand};
 use clap::Parser;
 use proptest::prelude::*;
 use std::io::Write;
@@ -72,4 +72,12 @@ fn next_image_uses_daemon() {
     let result = bongo_modulator::next_image_path(PathBuf::from("images"));
     handle.join().unwrap();
     assert_eq!(result.unwrap(), img_path);
+}
+
+#[test]
+fn pick_frame_empty_directory() {
+    let dir = tempdir().unwrap();
+    let mut index = 0usize;
+    let result = pick_frame(dir.path(), &mut index);
+    assert!(result.is_none());
 }
