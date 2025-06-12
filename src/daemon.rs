@@ -24,7 +24,7 @@ fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
         if !pids.is_empty() {
             return pids;
         }
-        error!(proc = %name, "process not found; waiting");
+        info!(proc = %name, "process not found; waiting");
         std::thread::sleep(Duration::from_secs(1));
     }
 }
@@ -104,30 +104,33 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     let mut pids = wait_for_process(&process, &mut sys);
 
     loop {
-        trace!("signalling hyprlock");
         sys.refresh_processes(ProcessesToUpdate::All, false);
-
-        if pids.is_empty() {
-            pids = wait_for_process(&process, &mut sys);
-        }
 
         pids.retain(|pid| {
             if let Some(proc_) = sys.process(*pid) {
+                if proc_.name() != std::ffi::OsStr::new(&process) {
+                    return false;
+                }
+                trace!(pid = pid.as_u32(), "signalling");
                 match proc_.kill_with(Signal::User2) {
                     Some(true) => true,
                     Some(false) => {
                         error!(pid = pid.as_u32(), "failed to send signal");
-                        true
+                        false
                     }
                     None => {
                         error!("signal not supported");
-                        true
+                        false
                     }
                 }
             } else {
                 false
             }
         });
+
+        if pids.is_empty() {
+            pids = wait_for_process(&process, &mut sys);
+        }
 
         let delay = fps.load(Ordering::Relaxed);
         trace!(fps = delay, "sleeping");
