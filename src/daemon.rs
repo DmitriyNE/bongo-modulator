@@ -16,7 +16,7 @@ use tracing::{debug, error, info, trace};
 
 fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
     loop {
-        sys.refresh_processes(ProcessesToUpdate::All, false);
+        sys.refresh_processes(ProcessesToUpdate::All, true);
         let pids: Vec<Pid> = sys
             .processes_by_name(std::ffi::OsStr::new(name))
             .map(|p| p.pid())
@@ -104,7 +104,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     let mut pids = wait_for_process(&process, &mut sys);
 
     loop {
-        sys.refresh_processes(ProcessesToUpdate::All, false);
+        sys.refresh_processes(ProcessesToUpdate::All, true);
 
         pids.retain(|pid| {
             if let Some(proc_) = sys.process(*pid) {
