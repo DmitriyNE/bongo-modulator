@@ -38,3 +38,7 @@ To use AI-based FPS modulation, download a YOLOv8 ONNX model and set the
 with the `nokhwa` crate (camera index `0`) and uses the model via the pure-Rust
 `candle` runtime to estimate how many people are in front of the camera. The FPS
 value is updated based on the detection results.
+
+Building `nokhwa` requires libclang. When not using the provided Nix flake,
+set the `LIBCLANG_PATH` environment variable to the directory containing
+`libclang.so`.

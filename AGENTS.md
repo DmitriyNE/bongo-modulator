@@ -7,4 +7,5 @@
 - Ensure the Nix flake stays in sync with project dependencies.
 - Target POSIX-compliant systems only (Linux and macOS). Windows is unsupported.
 - Camera capture should use the `nokhwa` crate for Linux and macOS.
-- Building `nokhwa` requires `libclang`; ensure it is available in the shell.
+- Building `nokhwa` requires `libclang`. Ensure it is available and that the
+  `LIBCLANG_PATH` environment variable points to its library directory.

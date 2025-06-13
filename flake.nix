@@ -24,6 +24,7 @@
         cargoLock.lockFile = ./Cargo.lock;
         nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf pkgs.llvmPackages.libclang ];
         buildInputs = [ pkgs.llvmPackages.libclang ];
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         postInstall = ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
@@ -49,6 +50,7 @@
             pkgs.protobuf
             pkgs.llvmPackages.libclang
           ];
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
       };
     };
 }
