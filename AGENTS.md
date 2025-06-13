@@ -7,6 +7,8 @@
 - Use only the tools provided by `nix develop`. Run all commands inside the Nix
   shell so dependencies come from the flake.
 - Ensure the Nix flake stays in sync with project dependencies.
+- After building, push the resulting store paths to Cachix with
+  `cachix push bongo-modulator`.
 - Target POSIX-compliant systems only (Linux and macOS). Windows is unsupported.
 - Camera capture should use the `nokhwa` crate for Linux and macOS.
 - Building `nokhwa` requires `libclang`. Ensure it is available and that the
