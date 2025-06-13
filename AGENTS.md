@@ -9,3 +9,5 @@
 - Camera capture should use the `nokhwa` crate for Linux and macOS.
 - Building `nokhwa` requires `libclang`. Ensure it is available and that the
   `LIBCLANG_PATH` environment variable points to its library directory.
+- On Linux, the build also needs Video4Linux headers. Provide them via your
+  package manager or the Nix flake.

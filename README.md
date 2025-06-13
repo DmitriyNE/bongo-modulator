@@ -42,3 +42,4 @@ value is updated based on the detection results.
 Building `nokhwa` requires libclang. When not using the provided Nix flake,
 set the `LIBCLANG_PATH` environment variable to the directory containing
 `libclang.so`.
+On Linux, you'll also need the Video4Linux headers (e.g. via `libv4l-dev`).

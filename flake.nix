@@ -22,8 +22,13 @@
         version = "0.1.0";
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
-        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf pkgs.llvmPackages.libclang ];
-        buildInputs = [ pkgs.llvmPackages.libclang ];
+        nativeBuildInputs = [
+          pkgs.pkg-config
+          pkgs.protobuf
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+        ];
+        buildInputs = [ pkgs.llvmPackages.libclang pkgs.libv4l ];
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         postInstall = ''
           mkdir -p $out/lib/systemd/system
@@ -43,14 +48,16 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
-          buildInputs = [
-            rustToolchain
-            pkgs.cargo-nextest
-            pkgs.pkg-config
-            pkgs.protobuf
-            pkgs.llvmPackages.libclang
-          ];
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        buildInputs = [
+          rustToolchain
+          pkgs.cargo-nextest
+          pkgs.pkg-config
+          pkgs.protobuf
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+          pkgs.libv4l
+        ];
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
       };
     };
 }
