@@ -24,6 +24,9 @@ bongo-modulator mode ai      # enable AI mode (YOLOv8)
 bongo-modulator mode fps 10  # set manual FPS
 ```
 
+A `bongo-modulator.service` unit is included for running the daemon under
+systemd. Enable it with `systemctl enable --now bongo-modulator.service`.
+
 See `AGENTS.md` for contribution guidelines and `CHANGELOG.md` for release
 notes.
 
