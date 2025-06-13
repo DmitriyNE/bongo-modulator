@@ -22,8 +22,14 @@
         version = "0.1.0";
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
-        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf pkgs.opencv ];
-        buildInputs = [ pkgs.opencv ];
+        nativeBuildInputs = [
+          pkgs.pkg-config
+          pkgs.protobuf
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+        ];
+        buildInputs = [ pkgs.llvmPackages.libclang pkgs.libv4l ];
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         postInstall = ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
@@ -47,8 +53,11 @@
           pkgs.cargo-nextest
           pkgs.pkg-config
           pkgs.protobuf
-          pkgs.opencv
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+          pkgs.libv4l
         ];
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
       };
     };
 }
