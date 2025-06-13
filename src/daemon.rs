@@ -1,3 +1,4 @@
+use crate::ai::spawn_ai_thread;
 use crate::config::load_config;
 use crate::frame::{image_dir, FrameCache};
 use crate::ipc::ControlMessage;
@@ -16,7 +17,7 @@ use tracing::{debug, error, info, trace};
 
 fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
     loop {
-        sys.refresh_processes(ProcessesToUpdate::All, false);
+        sys.refresh_processes(ProcessesToUpdate::All, true);
         let pids: Vec<Pid> = sys
             .processes_by_name(std::ffi::OsStr::new(name))
             .map(|p| p.pid())
@@ -24,7 +25,7 @@ fn wait_for_process(name: &str, sys: &mut System) -> Vec<Pid> {
         if !pids.is_empty() {
             return pids;
         }
-        error!(proc = %name, "process not found; waiting");
+        info!(proc = %name, "process not found; waiting");
         std::thread::sleep(Duration::from_secs(1));
     }
 }
@@ -40,6 +41,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     debug!(fps = cfg.fps, ai_mode = cfg.ai_mode, "loaded configuration");
     let fps = Arc::new(AtomicU32::new(cfg.fps.max(1)));
     let ai_mode = Arc::new(AtomicBool::new(cfg.ai_mode));
+    spawn_ai_thread(fps.clone(), ai_mode.clone());
 
     let sock_path = crate::ipc::socket_path();
     if fs::remove_file(&sock_path).is_ok() {
@@ -104,18 +106,15 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     let mut pids = wait_for_process(&process, &mut sys);
 
     loop {
-        trace!("signalling hyprlock");
-        sys.refresh_processes(ProcessesToUpdate::All, false);
-
-        if pids.is_empty() {
-            pids = wait_for_process(&process, &mut sys);
-        }
+        sys.refresh_processes(ProcessesToUpdate::All, true);
 
         pids.retain(|pid| {
             if let Some(proc_) = sys.process(*pid) {
                 if proc_.name() != std::ffi::OsStr::new(&process) {
                     return false;
                 }
+                trace!(pid = pid.as_u32(), "signalling");
+
                 match proc_.kill_with(Signal::User2) {
                     Some(true) => true,
                     Some(false) => {
@@ -131,6 +130,10 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                 false
             }
         });
+
+        if pids.is_empty() {
+            pids = wait_for_process(&process, &mut sys);
+        }
 
         let delay = fps.load(Ordering::Relaxed);
         trace!(fps = delay, "sleeping");

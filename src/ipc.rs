@@ -3,6 +3,8 @@ use std::io::{Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use std::{env, io};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -13,27 +15,39 @@ pub enum ControlMessage {
 }
 
 pub fn socket_path() -> PathBuf {
-    env::var_os("BONGO_SOCKET")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/tmp/bongo.sock"))
+    if let Some(path) = env::var_os("BONGO_SOCKET") {
+        PathBuf::from(path)
+    } else if let Some(dir) = env::var_os("XDG_RUNTIME_DIR") {
+        PathBuf::from(dir).join("bongo.sock")
+    } else {
+        env::temp_dir().join("bongo.sock")
+    }
 }
 
 pub fn send_command(msg: ControlMessage) -> io::Result<Option<String>> {
     let path = socket_path();
-    match UnixStream::connect(&path) {
-        Ok(mut stream) => {
-            serde_json::to_writer(&mut stream, &msg)?;
-            stream.flush()?;
-            let _ = stream.shutdown(Shutdown::Write);
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match UnixStream::connect(&path) {
+            Ok(mut stream) => {
+                serde_json::to_writer(&mut stream, &msg)?;
+                stream.flush()?;
+                let _ = stream.shutdown(Shutdown::Write);
 
-            if matches!(msg, ControlMessage::NextImage) {
-                let mut buf = String::new();
-                stream.read_to_string(&mut buf)?;
-                Ok(Some(buf))
-            } else {
-                Ok(None)
+                if matches!(msg, ControlMessage::NextImage) {
+                    let mut buf = String::new();
+                    stream.read_to_string(&mut buf)?;
+                    return Ok(Some(buf));
+                } else {
+                    return Ok(None);
+                }
+            }
+            Err(e) => {
+                if Instant::now() >= deadline {
+                    return Err(e);
+                }
+                sleep(Duration::from_millis(10));
             }
         }
-        Err(e) => Err(e),
     }
 }
