@@ -13,9 +13,13 @@ pub enum ControlMessage {
 }
 
 pub fn socket_path() -> PathBuf {
-    env::var_os("BONGO_SOCKET")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/tmp/bongo.sock"))
+    if let Some(path) = env::var_os("BONGO_SOCKET") {
+        PathBuf::from(path)
+    } else if let Some(dir) = env::var_os("XDG_RUNTIME_DIR") {
+        PathBuf::from(dir).join("bongo.sock")
+    } else {
+        env::temp_dir().join("bongo.sock")
+    }
 }
 
 pub fn send_command(msg: ControlMessage) -> io::Result<Option<String>> {
