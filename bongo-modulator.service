@@ -1,0 +1,10 @@
+[Unit]
+Description=Bongo Modulator daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/bongo-modulator daemon
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
