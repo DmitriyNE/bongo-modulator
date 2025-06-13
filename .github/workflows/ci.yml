@@ -13,7 +13,10 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@v10
 
-      - uses: DeterminateSystems/magic-nix-cache-action@v2
+      - uses: cachix/cachix-action@v16
+        with:
+          name: bongo-modulator
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build flake
         run: nix flake check
