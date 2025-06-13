@@ -22,8 +22,8 @@
         version = "0.1.0";
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
-        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf pkgs.opencv ];
-        buildInputs = [ pkgs.opencv ];
+        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf ];
+        buildInputs = [ ];
         postInstall = ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
@@ -42,13 +42,12 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [
-          rustToolchain
-          pkgs.cargo-nextest
-          pkgs.pkg-config
-          pkgs.protobuf
-          pkgs.opencv
-        ];
+          buildInputs = [
+            rustToolchain
+            pkgs.cargo-nextest
+            pkgs.pkg-config
+            pkgs.protobuf
+          ];
       };
     };
 }

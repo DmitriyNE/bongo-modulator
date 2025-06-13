@@ -35,6 +35,6 @@ notes.
 
 To use AI-based FPS modulation, download a YOLOv8 ONNX model and set the
 `BONGO_YOLO_MODEL` environment variable to its path. The daemon captures frames
-with the `opencv` crate (camera index `0`) and uses the model via the pure-Rust
+with the `nokhwa` crate (camera index `0`) and uses the model via the pure-Rust
 `candle` runtime to estimate how many people are in front of the camera. The FPS
 value is updated based on the detection results.

@@ -1,8 +1,9 @@
 use candle_core::Device;
 use candle_onnx::read_file;
-use opencv::{
-    prelude::*,
-    videoio::{VideoCapture, CAP_ANY},
+use nokhwa::{
+    pixel_format::RgbFormat,
+    utils::{CameraIndex, RequestedFormat, RequestedFormatType},
+    Camera,
 };
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
@@ -13,15 +14,16 @@ use tracing::{debug, error};
 
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
-        let mut cam = match VideoCapture::new(0, CAP_ANY) {
+        let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
+        let mut cam = match Camera::new(CameraIndex::Index(0), format) {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
                 return;
             }
         };
-        if !cam.is_opened().unwrap_or(false) {
-            error!("failed to open camera");
+        if let Err(e) = cam.open_stream() {
+            error!("failed to open camera stream: {e}");
             return;
         }
 
@@ -42,9 +44,8 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 std::thread::sleep(Duration::from_millis(100));
                 continue;
             }
-            let mut frame = opencv::core::Mat::default();
-            if cam.read(&mut frame).is_err() || frame.empty() {
-                error!("failed to capture frame");
+            if let Err(e) = cam.frame() {
+                error!("failed to capture frame: {e}");
                 continue;
             }
             let _device = &device;
