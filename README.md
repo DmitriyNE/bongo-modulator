@@ -20,9 +20,17 @@ so changes take effect immediately.
 bongo-modulator daemon       # start the signalling service
 bongo-modulator daemon --process hyprlock  # custom process name
 bongo-modulator next-image   # print path to next frame
-bongo-modulator mode ai      # enable AI mode (stub)
+bongo-modulator mode ai      # enable AI mode (YOLOv8)
 bongo-modulator mode fps 10  # set manual FPS
 ```
 
 See `AGENTS.md` for contribution guidelines and `CHANGELOG.md` for release
 notes.
+
+## AI mode
+
+To use AI-based FPS modulation, download a YOLOv8 ONNX model and set the
+`BONGO_YOLO_MODEL` environment variable to its path. The daemon captures frames
+from `/dev/video0` and uses the model via the pure-Rust `candle` runtime to
+estimate how many people are in front of the camera. The FPS value is updated
+based on the detection results.

@@ -23,6 +23,7 @@ proptest! {
         }
     }
 
+
     #[test]
     fn parse_daemon_dir(path in "[a-zA-Z0-9][a-zA-Z0-9/_\\.-]*") {
         let args = ["bongo-modulator", "daemon", "--dir", &path];
@@ -72,6 +73,39 @@ proptest! {
         let received = handle.join().unwrap();
         prop_assert_eq!(received, ControlMessage::SetFps(value));
         prop_assert_eq!(current_fps(), value);
+    }
+
+    #[test]
+    fn execute_enables_ai(value in Just(())) {
+        let _ = value; // suppress unused param
+        let dir = tempdir().unwrap();
+        std::env::set_var("BONGO_STATE_PATH", dir.path().join("state.json"));
+        let socket = dir.path().join("sock");
+        std::env::set_var("BONGO_SOCKET", &socket);
+
+        let listener = UnixListener::bind(&socket).unwrap();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            serde_json::from_reader::<_, ControlMessage>(&mut stream).unwrap()
+        });
+
+        let cli = Cli { command: Commands::Mode { mode: ModeSubcommand::Ai } };
+        execute(cli);
+
+        let received = handle.join().unwrap();
+        prop_assert_eq!(received, ControlMessage::EnableAi);
+    }
+}
+
+#[test]
+fn parse_ai_mode() {
+    let args = ["bongo-modulator", "mode", "ai"];
+    let cli = Cli::parse_from(&args);
+    match cli.command {
+        Commands::Mode {
+            mode: ModeSubcommand::Ai,
+        } => {}
+        _ => panic!("unexpected subcommand"),
     }
 }
 

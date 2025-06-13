@@ -1,3 +1,4 @@
+use crate::ai::spawn_ai_thread;
 use crate::config::load_config;
 use crate::frame::{image_dir, FrameCache};
 use crate::ipc::ControlMessage;
@@ -40,6 +41,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
     debug!(fps = cfg.fps, ai_mode = cfg.ai_mode, "loaded configuration");
     let fps = Arc::new(AtomicU32::new(cfg.fps.max(1)));
     let ai_mode = Arc::new(AtomicBool::new(cfg.ai_mode));
+    spawn_ai_thread(fps.clone(), ai_mode.clone());
 
     let sock_path = crate::ipc::socket_path();
     if fs::remove_file(&sock_path).is_ok() {
