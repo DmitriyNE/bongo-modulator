@@ -114,6 +114,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                     return false;
                 }
                 trace!(pid = pid.as_u32(), "signalling");
+
                 match proc_.kill_with(Signal::User2) {
                     Some(true) => true,
                     Some(false) => {
