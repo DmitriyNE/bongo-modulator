@@ -2,13 +2,22 @@
   description = "bongo-modulator dev shell";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+  inputs.rust-overlay.url = "github:oxalica/rust-overlay";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, rust-overlay }:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ rust-overlay.overlays.default ];
+      };
+      rustToolchain = pkgs.rust-bin.stable.latest.default;
+      rustPlatform = pkgs.makeRustPlatform {
+        cargo = rustToolchain;
+        rustc = rustToolchain;
+      };
     in {
-      packages.${system}.default = pkgs.rustPlatform.buildRustPackage {
+      packages.${system}.default = rustPlatform.buildRustPackage {
         pname = "bongo-modulator";
         version = "0.1.0";
         src = self;
@@ -33,10 +42,7 @@
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [
-          pkgs.rustc
-          pkgs.cargo
-          pkgs.clippy
-          pkgs.rustfmt
+          rustToolchain
           pkgs.cargo-nextest
           pkgs.pkg-config
           pkgs.protobuf

@@ -11,34 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: DeterminateSystems/nix-installer-action@v10
 
-      - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - uses: DeterminateSystems/magic-nix-cache-action@v2
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install nextest
-        uses: taiki-e/install-action@nextest
+      - name: Build flake
+        run: nix flake check
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: nix develop --command cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy -- -D warnings
+        run: nix develop --command cargo clippy -- -D warnings
 
       - name: Test
-        run: cargo nextest run
+        run: nix develop --command cargo nextest run
