@@ -1,6 +1,7 @@
 # Bongo modulator
 
 This project modulates bongo cat intensity on the Hyprlock lockscreen.
+It targets POSIX-compliant systems (Linux and macOS) only.
 
 The daemon periodically sends `SIGUSR2` to Hyprlock so it refreshes its image
 element. Hyprlock retrieves frames by running `bongo-modulator next-image`
@@ -34,6 +35,6 @@ notes.
 
 To use AI-based FPS modulation, download a YOLOv8 ONNX model and set the
 `BONGO_YOLO_MODEL` environment variable to its path. The daemon captures frames
-from `/dev/video0` and uses the model via the pure-Rust `candle` runtime to
-estimate how many people are in front of the camera. The FPS value is updated
-based on the detection results.
+with the `opencv` crate (camera index `0`) and uses the model via the pure-Rust
+`candle` runtime to estimate how many people are in front of the camera. The FPS
+value is updated based on the detection results.

@@ -22,7 +22,8 @@
         version = "0.1.0";
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
-        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf ];
+        nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf pkgs.opencv ];
+        buildInputs = [ pkgs.opencv ];
         postInstall = ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
@@ -46,6 +47,7 @@
           pkgs.cargo-nextest
           pkgs.pkg-config
           pkgs.protobuf
+          pkgs.opencv
         ];
       };
     };
