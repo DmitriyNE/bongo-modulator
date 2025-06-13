@@ -1,6 +1,10 @@
 use candle_core::Device;
 use candle_onnx::read_file;
-use rscam::{Camera, Config};
+use nokhwa::{
+    pixel_format::RgbFormat,
+    utils::{CameraIndex, RequestedFormat, RequestedFormatType},
+    Camera,
+};
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     Arc,
@@ -10,20 +14,19 @@ use tracing::{debug, error};
 
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
-        let mut cam = match Camera::new("/dev/video0") {
+        let index = CameraIndex::Index(0);
+        let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
+        let mut cam = match Camera::new(index, format) {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
                 return;
             }
         };
-
-        let _ = cam.start(&Config {
-            interval: (1, 30),
-            resolution: (640, 480),
-            format: b"RGB3",
-            ..Default::default()
-        });
+        if let Err(e) = cam.open_stream() {
+            error!("failed to open camera stream: {e}");
+            return;
+        }
 
         let model_path =
             std::env::var("BONGO_YOLO_MODEL").unwrap_or_else(|_| "yolov8.onnx".to_string());
@@ -42,8 +45,8 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 std::thread::sleep(Duration::from_millis(100));
                 continue;
             }
-            if cam.capture().is_err() {
-                error!("failed to capture frame");
+            if let Err(e) = cam.frame() {
+                error!("failed to capture frame: {e}");
                 continue;
             }
             let _device = &device;
