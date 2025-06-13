@@ -1,6 +1,9 @@
 use candle_core::Device;
 use candle_onnx::read_file;
-use rscam::{Camera, Config};
+use opencv::{
+    prelude::*,
+    videoio::{VideoCapture, CAP_ANY},
+};
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     Arc,
@@ -10,20 +13,17 @@ use tracing::{debug, error};
 
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
-        let mut cam = match Camera::new("/dev/video0") {
+        let mut cam = match VideoCapture::new(0, CAP_ANY) {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
                 return;
             }
         };
-
-        let _ = cam.start(&Config {
-            interval: (1, 30),
-            resolution: (640, 480),
-            format: b"RGB3",
-            ..Default::default()
-        });
+        if !cam.is_opened().unwrap_or(false) {
+            error!("failed to open camera");
+            return;
+        }
 
         let model_path =
             std::env::var("BONGO_YOLO_MODEL").unwrap_or_else(|_| "yolov8.onnx".to_string());
@@ -42,7 +42,8 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 std::thread::sleep(Duration::from_millis(100));
                 continue;
             }
-            if cam.capture().is_err() {
+            let mut frame = opencv::core::Mat::default();
+            if cam.read(&mut frame).is_err() || frame.empty() {
                 error!("failed to capture frame");
                 continue;
             }

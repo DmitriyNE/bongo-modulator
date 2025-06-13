@@ -13,7 +13,7 @@ serde_json = "1"
 sysinfo = "0.35"
 candle-core = "0.9"
 candle-onnx = "0.9"
-rscam = { version = "0.5", features = ["no_wrapper"] }
+opencv = { version = "0.94", default-features = false, features = ["videoio"] }
 image = "0.24"
 
 [dev-dependencies]
