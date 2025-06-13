@@ -23,6 +23,7 @@
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
         nativeBuildInputs = [ pkgs.pkg-config pkgs.protobuf ];
+        buildInputs = [ pkgs.libv4l pkgs.udev ];
         postInstall = ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
@@ -46,6 +47,8 @@
           pkgs.cargo-nextest
           pkgs.pkg-config
           pkgs.protobuf
+          pkgs.libv4l
+          pkgs.udev
         ];
       };
     };

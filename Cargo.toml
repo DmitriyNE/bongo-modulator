@@ -13,7 +13,7 @@ serde_json = "1"
 sysinfo = "0.35"
 candle-core = "0.9"
 candle-onnx = "0.9"
-rscam = { version = "0.5", features = ["no_wrapper"] }
+nokhwa = { version = "0.10", default-features = false, features = ["input-v4l", "input-avfoundation"] }
 image = "0.24"
 
 [dev-dependencies]
