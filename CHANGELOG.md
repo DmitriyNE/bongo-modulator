@@ -8,3 +8,4 @@
 - CLI updates are sent to the daemon over a Unix socket
 - `next-image` retrieves frames from the daemon
 - Hyprlock process detection via `--process`
+- Default YOLOv8 model now downloaded from `salim4n/yolov8n-detect-onnx`
