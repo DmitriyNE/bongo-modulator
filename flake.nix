@@ -61,5 +61,38 @@
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
       };
+
+      checks.${system} = let
+        devInputs = [
+          rustToolchain
+          pkgs.cargo-nextest
+          pkgs.pkg-config
+          pkgs.protobuf
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+          pkgs.libv4l
+        ];
+        commonEnv = {
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
+        };
+      in {
+        clippyCheck = pkgs.runCommand "clippy-check" ({ buildInputs = devInputs; } // commonEnv) ''
+          export HOME=$(mktemp -d)
+          cd ${self}
+          cargo clippy -- -D warnings
+          touch $out
+        '';
+
+        nextestCheck = pkgs.runCommand "nextest-check" ({ buildInputs = devInputs; } // commonEnv) ''
+          export HOME=$(mktemp -d)
+          cd ${self}
+          cargo nextest run
+          touch $out
+        '';
+      };
+
+      clippyCheck = self.checks.${system}.clippyCheck;
+      nextestCheck = self.checks.${system}.nextestCheck;
     };
 }
