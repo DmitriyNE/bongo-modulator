@@ -4,14 +4,14 @@ use tracing::error;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub fps: u32,
+    pub fps: f32,
     pub ai_mode: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            fps: 5,
+            fps: 5.0,
             ai_mode: false,
         }
     }
@@ -48,6 +48,6 @@ pub fn save_config(cfg: &Config) {
 }
 
 /// Returns the currently configured FPS.
-pub fn current_fps() -> u32 {
+pub fn current_fps() -> f32 {
     load_config().fps
 }

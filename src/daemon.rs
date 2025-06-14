@@ -39,7 +39,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
 
     let cfg = load_config();
     debug!(fps = cfg.fps, ai_mode = cfg.ai_mode, "loaded configuration");
-    let fps = Arc::new(AtomicU32::new(cfg.fps.max(1)));
+    let fps = Arc::new(AtomicU32::new(cfg.fps.clamp(0.5, 30.0).to_bits()));
     let ai_mode = Arc::new(AtomicBool::new(cfg.ai_mode));
     spawn_ai_thread(fps.clone(), ai_mode.clone());
 
@@ -72,9 +72,10 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                         debug!(?msg, "received message");
                         match msg {
                             ControlMessage::SetFps(v) => {
+                                let v = v.clamp(0.5, 30.0);
                                 debug!(fps = v, "updating fps and disabling AI");
                                 ai_ctrl.store(false, Ordering::Relaxed);
-                                fps_ctrl.store(v.max(1), Ordering::Relaxed)
+                                fps_ctrl.store(v.to_bits(), Ordering::Relaxed)
                             }
                             ControlMessage::EnableAi => {
                                 debug!("enabling AI mode");
@@ -136,7 +137,7 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
             pids = wait_for_process(&process, &mut sys);
         }
 
-        let delay = fps.load(Ordering::Relaxed);
+        let delay = f32::from_bits(fps.load(Ordering::Relaxed));
         trace!(fps = delay, "sleeping");
         std::thread::sleep(Duration::from_secs_f64(1.0 / delay as f64));
     }

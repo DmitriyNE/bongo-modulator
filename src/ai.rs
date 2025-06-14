@@ -82,15 +82,15 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             let ratio = (start.elapsed().as_millis() % 1000) as f32 / 1000.0;
             let computed = compute_fps(count, ratio);
             debug!(fps = computed, count, ratio = ratio, "AI updated FPS");
-            fps.store(computed, Ordering::Relaxed);
+            fps.store(computed.to_bits(), Ordering::Relaxed);
             std::thread::sleep(Duration::from_secs(1));
         }
     });
 }
 
-fn compute_fps(count: usize, ratio: f32) -> u32 {
+fn compute_fps(count: usize, ratio: f32) -> f32 {
     let base = 5.0;
     let weight = 20.0;
     let fps = base + weight * ratio * count as f32;
-    fps.clamp(1.0, 60.0) as u32
+    fps.clamp(0.5, 30.0)
 }
