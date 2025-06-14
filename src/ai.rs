@@ -3,7 +3,7 @@ use candle_onnx::read_file;
 use hf_hub::api::sync::Api;
 use nokhwa::{
     pixel_format::RgbFormat,
-    utils::{CameraIndex, RequestedFormat, RequestedFormatType},
+    utils::{CameraFormat, CameraIndex, FrameFormat, RequestedFormat, RequestedFormatType},
     Camera,
 };
 use std::path::Path;
@@ -17,7 +17,12 @@ use tracing::{debug, error};
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
-        let mut cam = match Camera::new(CameraIndex::Index(0), format) {
+        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
+        ));
+        let mut cam = match Camera::new(CameraIndex::Index(0), format)
+            .or_else(|_| Camera::new(CameraIndex::Index(0), fallback))
+        {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
