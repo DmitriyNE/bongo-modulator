@@ -46,3 +46,16 @@ Building `nokhwa` requires libclang. When not using the provided Nix flake,
 set the `LIBCLANG_PATH` environment variable to the directory containing
 `libclang.so`.
 On Linux, you'll also need the Video4Linux headers (e.g. via `libv4l-dev`).
+
+## Nix build
+
+The project uses [cargo2nix](https://github.com/cargo2nix/cargo2nix) for
+reproducible builds. Regenerate `Cargo.nix` whenever `Cargo.toml` or
+`Cargo.lock` changes:
+
+```bash
+cachix watch-exec bongo-modulator -- \
+  cargo2nix --overwrite
+```
+
+After building, push the results with `cachix push bongo-modulator`.

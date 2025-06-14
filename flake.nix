@@ -3,25 +3,30 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
+  inputs.cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
 
-  outputs = { self, nixpkgs, rust-overlay }:
+  outputs = { self, nixpkgs, rust-overlay, cargo2nix }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [ rust-overlay.overlays.default ];
+        overlays = [
+          rust-overlay.overlays.default
+          cargo2nix.overlays.default
+        ];
       };
       rustToolchain = pkgs.rust-bin.stable.latest.default;
       rustPlatform = pkgs.makeRustPlatform {
         cargo = rustToolchain;
         rustc = rustToolchain;
       };
+      rustPkgs = pkgs.rustBuilder.makePackageSet {
+        rustToolchain = rustToolchain;
+        packageFun = import ./Cargo.nix;
+        packageOverrides = pkgs: pkgs.rustBuilder.overrides.all;
+      };
     in {
-      packages.${system}.default = rustPlatform.buildRustPackage {
-        pname = "bongo-modulator";
-        version = "0.1.0";
-        src = self;
-        cargoLock.lockFile = ./Cargo.lock;
+      packages.${system}.default = rustPkgs.workspace.bongo-modulator {
         nativeBuildInputs = [
           pkgs.pkg-config
           pkgs.protobuf
