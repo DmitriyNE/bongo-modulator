@@ -39,10 +39,10 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             return;
         }
 
-        let filename =
-            std::env::var("BONGO_YOLO_MODEL").unwrap_or_else(|_| "onnx_model.onnx".to_string());
+        let filename = std::env::var("BONGO_YOLO_MODEL")
+            .unwrap_or_else(|_| "yolov8n-onnx-web/yolov8n.onnx".to_string());
         let repo = std::env::var("BONGO_YOLO_REPO")
-            .unwrap_or_else(|_| "NaveenKumar5/Yolov8n-onnx-export".to_string());
+            .unwrap_or_else(|_| "salim4n/yolov8n-detect-onnx".to_string());
         let model_path = if Path::new(&filename).exists() {
             filename.clone()
         } else {

@@ -36,7 +36,7 @@ notes.
 To use AI-based FPS modulation, set the `BONGO_YOLO_MODEL` environment variable
 to the desired model filename. If the file does not exist locally the daemon
 automatically downloads it from the Hugging Face hub (defaults to
-`onnx_model.onnx` from `NaveenKumar5/Yolov8n-onnx-export`). The repository can
+`yolov8n-onnx-web/yolov8n.onnx` from `salim4n/yolov8n-detect-onnx`). The repository can
 be overridden with `BONGO_YOLO_REPO`. The
 daemon captures frames with the `nokhwa` crate (camera index `0`) and uses the
 model via the pure-Rust `candle` runtime to estimate how many people are in
