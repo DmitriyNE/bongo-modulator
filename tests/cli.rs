@@ -1,3 +1,4 @@
+use bongo_modulator::config::load_config;
 use bongo_modulator::{current_fps, execute, pick_frame, Cli, Commands, ModeSubcommand};
 use clap::Parser;
 use proptest::prelude::*;
@@ -75,6 +76,8 @@ proptest! {
         let received = handle.join().unwrap();
         prop_assert_eq!(received, ControlMessage::SetFps(value));
         prop_assert_eq!(current_fps(), value);
+        let cfg = load_config();
+        prop_assert!(!cfg.ai_mode);
     }
 
     #[test]

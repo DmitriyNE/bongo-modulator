@@ -86,6 +86,7 @@ fn enable_ai() {
 fn set_fps(fps: u32) {
     let mut cfg = load_config();
     cfg.fps = fps;
+    cfg.ai_mode = false;
     save_config(&cfg);
     let _ = send_command(ControlMessage::SetFps(fps));
     info!("manual fps set to {fps}");
