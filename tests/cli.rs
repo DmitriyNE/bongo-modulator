@@ -1,6 +1,7 @@
 use bongo_modulator::{current_fps, execute, pick_frame, Cli, Commands, ModeSubcommand};
 use clap::Parser;
 use proptest::prelude::*;
+use serial_test::serial;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
 use tempfile::tempdir;
@@ -51,6 +52,7 @@ proptest! {
     }
 
     #[test]
+    #[serial]
     fn execute_sets_fps(value in 1u32..30) {
         let dir = tempdir().unwrap();
         std::env::set_var("BONGO_STATE_PATH", dir.path().join("state.json"));
@@ -76,6 +78,7 @@ proptest! {
     }
 
     #[test]
+    #[serial]
     fn execute_enables_ai(value in Just(())) {
         let _ = value; // suppress unused param
         let dir = tempdir().unwrap();
@@ -110,6 +113,7 @@ fn parse_ai_mode() {
 }
 
 #[test]
+#[serial]
 fn next_image_uses_daemon() {
     let dir = tempdir().unwrap();
     let socket = dir.path().join("sock");

@@ -19,3 +19,4 @@ image = "0.24"
 [dev-dependencies]
 proptest = "1"
 tempfile = "3"
+serial_test = "2"
