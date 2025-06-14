@@ -61,5 +61,61 @@
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
       };
+
+      checks.${system} = let
+        devInputs = [
+          rustToolchain
+          pkgs.cargo-nextest
+          pkgs.pkg-config
+          pkgs.protobuf
+          pkgs.llvmPackages.libclang
+          pkgs.linuxHeaders
+          pkgs.libv4l
+        ];
+        commonEnv = {
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
+        };
+        cargoArtifacts = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
+      in {
+        clippyCheck = rustPlatform.buildRustPackage {
+          pname = "bongo-modulator-clippy";
+          version = "0";
+          src = self;
+          cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = devInputs;
+          buildInputs = [ pkgs.llvmPackages.libclang pkgs.libv4l ];
+          inherit (commonEnv) LIBCLANG_PATH BINDGEN_EXTRA_CLANG_ARGS;
+          CARGO_HOME = cargoArtifacts;
+          doCheck = false;
+          buildPhase = ''
+            cargo clippy --offline -- -D warnings
+          '';
+          installPhase = ''
+            touch $out
+          '';
+        };
+
+        nextestCheck = rustPlatform.buildRustPackage {
+          pname = "bongo-modulator-nextest";
+          version = "0";
+          src = self;
+          cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = devInputs;
+          buildInputs = [ pkgs.llvmPackages.libclang pkgs.libv4l ];
+          inherit (commonEnv) LIBCLANG_PATH BINDGEN_EXTRA_CLANG_ARGS;
+          CARGO_HOME = cargoArtifacts;
+          doCheck = false;
+          buildPhase = ''
+            cargo nextest run --offline
+          '';
+          installPhase = ''
+            touch $out
+          '';
+        };
+      };
+
+      clippyCheck = self.checks.${system}.clippyCheck;
+      nextestCheck = self.checks.${system}.nextestCheck;
     };
 }
