@@ -29,7 +29,11 @@ jobs:
         run: nix develop --command cargo fmt --all -- --check
 
       - name: Lint
-        run: nix build .#clippyCheck
+        run: |
+          nix build --out-link result-clippy .#clippyCheck
+          cachix push bongo-modulator result-clippy
 
       - name: Test
-        run: nix build .#nextestCheck
+        run: |
+          nix build --out-link result-nextest .#nextestCheck
+          cachix push bongo-modulator result-nextest
