@@ -11,7 +11,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     Arc,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tracing::{debug, error};
 
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
@@ -64,6 +64,9 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
         let device = Device::Cpu;
         debug!("AI thread started");
 
+        let start = Instant::now();
+        let mut count = 0usize;
+
         loop {
             if !enabled.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(100));
@@ -73,9 +76,12 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 error!("failed to capture frame: {e}");
                 continue;
             }
+            count += 1;
             let _device = &device;
             let _ = &model; // placeholder for actual inference
-            let computed = compute_fps(1, 0.5);
+            let ratio = (start.elapsed().as_millis() % 1000) as f32 / 1000.0;
+            let computed = compute_fps(count, ratio);
+            debug!(fps = computed, count, ratio = ratio, "AI updated FPS");
             fps.store(computed, Ordering::Relaxed);
             std::thread::sleep(Duration::from_secs(1));
         }

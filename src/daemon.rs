@@ -72,7 +72,8 @@ pub fn run_daemon(dir: Option<PathBuf>, process: String) {
                         debug!(?msg, "received message");
                         match msg {
                             ControlMessage::SetFps(v) => {
-                                debug!(fps = v, "updating fps");
+                                debug!(fps = v, "updating fps and disabling AI");
+                                ai_ctrl.store(false, Ordering::Relaxed);
                                 fps_ctrl.store(v.max(1), Ordering::Relaxed)
                             }
                             ControlMessage::EnableAi => {
