@@ -17,6 +17,11 @@ use tracing::{debug, error};
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
+        #[cfg(target_os = "macos")]
+        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+            CameraFormat::new_from(1280, 720, FrameFormat::NV12, 30),
+        ));
+        #[cfg(not(target_os = "macos"))]
         let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
             CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
         ));
