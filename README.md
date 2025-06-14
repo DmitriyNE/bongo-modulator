@@ -33,11 +33,13 @@ notes.
 
 ## AI mode
 
-To use AI-based FPS modulation, download a YOLOv8 ONNX model and set the
-`BONGO_YOLO_MODEL` environment variable to its path. The daemon captures frames
-with the `nokhwa` crate (camera index `0`) and uses the model via the pure-Rust
-`candle` runtime to estimate how many people are in front of the camera. The FPS
-value is updated based on the detection results.
+To use AI-based FPS modulation, set the `BONGO_YOLO_MODEL` environment variable
+to the desired model filename. If the file does not exist locally the daemon
+automatically downloads it from the Hugging Face hub. The repository can be
+overridden with `BONGO_YOLO_REPO` (defaults to `ultralytics/yolov8n`). The
+daemon captures frames with the `nokhwa` crate (camera index `0`) and uses the
+model via the pure-Rust `candle` runtime to estimate how many people are in
+front of the camera. The FPS value is updated based on the detection results.
 
 Building `nokhwa` requires libclang. When not using the provided Nix flake,
 set the `LIBCLANG_PATH` environment variable to the directory containing
