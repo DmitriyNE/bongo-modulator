@@ -1,11 +1,13 @@
-use candle_core::Device;
-use candle_onnx::read_file;
+use candle_core::{DType, Device, Tensor};
+use candle_onnx::{read_file, simple_eval};
 use hf_hub::api::sync::Api;
+use image::imageops::FilterType;
 use nokhwa::{
     pixel_format::RgbFormat,
     utils::{CameraFormat, CameraIndex, FrameFormat, RequestedFormat, RequestedFormatType},
     Camera,
 };
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
@@ -61,24 +63,83 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 return;
             }
         };
+        let graph = match &model.graph {
+            Some(g) => g,
+            None => {
+                error!("model graph missing");
+                return;
+            }
+        };
+        let input_name = graph.input[0].name.clone();
+        let output_name = graph.output[0].name.clone();
         let device = Device::Cpu;
         debug!("AI thread started");
 
         let start = Instant::now();
-        let mut count = 0usize;
 
         loop {
             if !enabled.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(100));
                 continue;
             }
-            if let Err(e) = cam.frame() {
-                error!("failed to capture frame: {e}");
-                continue;
-            }
-            count += 1;
-            let _device = &device;
-            let _ = &model; // placeholder for actual inference
+            let frame = match cam.frame() {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("failed to capture frame: {e}");
+                    continue;
+                }
+            };
+            let img = match frame.decode_image::<RgbFormat>() {
+                Ok(i) => image::DynamicImage::ImageRgb8(i),
+                Err(e) => {
+                    error!("failed to decode frame: {e}");
+                    continue;
+                }
+            };
+            let img = img.resize_exact(640, 640, FilterType::CatmullRom);
+            let data = img.into_rgb8().into_raw();
+            let tensor = match Tensor::from_vec(data, (640, 640, 3), &device) {
+                Ok(t) => match t
+                    .permute((2, 0, 1))
+                    .and_then(|t| t.to_dtype(DType::F32))
+                    .and_then(|t| t.affine(1.0 / 255.0, 0.0))
+                {
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("failed to prepare tensor: {e}");
+                        continue;
+                    }
+                },
+                Err(e) => {
+                    error!("failed to create tensor: {e}");
+                    continue;
+                }
+            };
+            let mut inputs = HashMap::new();
+            let tensor = match tensor.unsqueeze(0) {
+                Ok(t) => t,
+                Err(e) => {
+                    error!("failed to unsqueeze tensor: {e}");
+                    continue;
+                }
+            };
+            inputs.insert(input_name.clone(), tensor);
+            let mut outputs = match simple_eval(&model, inputs) {
+                Ok(o) => o,
+                Err(e) => {
+                    error!("failed to run model: {e}");
+                    continue;
+                }
+            };
+            let output = match outputs.remove(&output_name) {
+                Some(o) => o,
+                None => {
+                    error!("model output missing");
+                    continue;
+                }
+            };
+            let dims = output.dims();
+            let count = dims.get(1).copied().unwrap_or(0);
             let ratio = (start.elapsed().as_millis() % 1000) as f32 / 1000.0;
             let computed = compute_fps(count, ratio);
             debug!(fps = computed, count, ratio = ratio, "AI updated FPS");
