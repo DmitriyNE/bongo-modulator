@@ -4,8 +4,9 @@
 - Commit messages should be in imperative mood and under 72 characters.
 - Run `cargo clippy -- -D warnings` and `cargo nextest run` before commit.
 - Prefer writing property tests with `proptest` when applicable.
-- Use only the tools provided by `nix develop`. Run all commands inside the Nix
-  shell so dependencies come from the flake.
+- Use only the tools provided by `nix develop`. Either enter the dev shell
+  interactively with `nix develop` or prefix commands with `nix develop -c` so
+  tools like `cargo fmt`, `cargo clippy`, and `cargo nextest` are available.
 - Ensure the Nix flake stays in sync with project dependencies.
 - After building, push the resulting store paths to Cachix with
   `cachix push bongo-modulator`.
