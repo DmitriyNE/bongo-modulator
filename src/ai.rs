@@ -1,10 +1,12 @@
 use candle_core::Device;
 use candle_onnx::read_file;
+use hf_hub::api::sync::Api;
 use nokhwa::{
     pixel_format::RgbFormat,
     utils::{CameraIndex, RequestedFormat, RequestedFormatType},
     Camera,
 };
+use std::path::Path;
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     Arc,
@@ -27,8 +29,21 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             return;
         }
 
-        let model_path =
+        let filename =
             std::env::var("BONGO_YOLO_MODEL").unwrap_or_else(|_| "yolov8.onnx".to_string());
+        let repo =
+            std::env::var("BONGO_YOLO_REPO").unwrap_or_else(|_| "ultralytics/yolov8n".to_string());
+        let model_path = if Path::new(&filename).exists() {
+            filename.clone()
+        } else {
+            match Api::new().and_then(|api| api.model(repo).get(&filename)) {
+                Ok(p) => p.to_string_lossy().into(),
+                Err(e) => {
+                    error!("failed to download model: {e}");
+                    return;
+                }
+            }
+        };
         let model = match read_file(&model_path) {
             Ok(m) => m,
             Err(e) => {
