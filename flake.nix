@@ -11,11 +11,11 @@
       pkgs = import nixpkgs {
         inherit system;
         overlays = [
-          rust-overlay.overlays.default
           cargo2nix.overlays.default
+          rust-overlay.overlays.default
         ];
       };
-      rustToolchain = pkgs.rust-bin.nightly.latest.default;
+      rustToolchain = pkgs.rust-bin.stable.latest.default;
       rustPlatform = pkgs.makeRustPlatform {
         cargo = rustToolchain;
         rustc = rustToolchain;

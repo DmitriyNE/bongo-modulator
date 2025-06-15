@@ -53,8 +53,8 @@ The project uses [cargo2nix](https://github.com/cargo2nix/cargo2nix) for
 reproducible builds. Regenerate `Cargo.nix` whenever `Cargo.toml` or
 `Cargo.lock` changes:
 
-The Nix flake provides a Rust nightly toolchain (version 1.79 or newer) to
-support crates that require bleeding-edge features.
+The Nix flake bundles the latest stable Rust toolchain (currently 1.87) so
+crates requiring newer compiler features build reliably.
 
 ```bash
 cachix watch-exec bongo-modulator -- \
