@@ -21,7 +21,7 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
         #[cfg(target_os = "macos")]
         let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
+            CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
         ));
         #[cfg(not(target_os = "macos"))]
         let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
@@ -159,7 +159,9 @@ fn compute_fps(count: usize, ratio: f32) -> f32 {
 }
 
 fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
-    let Some(graph) = model.graph.as_mut() else { return; };
+    let Some(graph) = model.graph.as_mut() else {
+        return;
+    };
     let mut new_nodes = Vec::with_capacity(graph.node.len());
     for mut node in std::mem::take(&mut graph.node) {
         if node.op_type == "MaxPool" {
@@ -177,19 +179,24 @@ fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
             }
             if let Some(pads) = pad_attr {
                 let pad_init_name = format!("{}_pads", node.name);
-                let mut tensor = onnx::TensorProto::default();
-                tensor.name = pad_init_name.clone();
-                tensor.dims = vec![pads.len() as i64];
-                tensor.data_type = onnx::tensor_proto::DataType::Int64 as i32;
-                tensor.int64_data = pads.clone();
+                let full_pads = vec![0, 0, pads[0], pads[1], 0, 0, pads[2], pads[3]];
+                let tensor = onnx::TensorProto {
+                    name: pad_init_name.clone(),
+                    dims: vec![full_pads.len() as i64],
+                    data_type: onnx::tensor_proto::DataType::Int64 as i32,
+                    int64_data: full_pads.clone(),
+                    ..Default::default()
+                };
                 graph.initializer.push(tensor);
 
                 let pad_output = format!("{}_pad_out", node.name);
-                let mut pad_node = onnx::NodeProto::default();
-                pad_node.input = vec![node.input[0].clone(), pad_init_name];
-                pad_node.output = vec![pad_output.clone()];
-                pad_node.name = format!("{}_pad", node.name);
-                pad_node.op_type = "Pad".to_string();
+                let pad_node = onnx::NodeProto {
+                    input: vec![node.input[0].clone(), pad_init_name],
+                    output: vec![pad_output.clone()],
+                    name: format!("{}_pad", node.name),
+                    op_type: "Pad".to_string(),
+                    ..Default::default()
+                };
                 new_nodes.push(pad_node);
 
                 node.input[0] = pad_output;
