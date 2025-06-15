@@ -14,3 +14,4 @@
 - Resize ops replaced with identity when unsupported
 - Camera tries multiple formats, logging any failures
 - Pad tensors expanded to match input rank
+- NV12 capture removed due to decoding issues

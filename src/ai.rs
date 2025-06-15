@@ -22,15 +22,10 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
         let mut cam = None;
         let mut last_err = None;
         for (w, h) in [(1280, 720), (640, 480)] {
-            for fmt in [
-                FrameFormat::RAWRGB,
-                FrameFormat::MJPEG,
-                FrameFormat::YUYV,
-                FrameFormat::NV12,
-            ] {
-                let req = RequestedFormat::new::<RgbFormat>(
-                    RequestedFormatType::Closest(CameraFormat::new_from(w, h, fmt, 30)),
-                );
+            for fmt in [FrameFormat::RAWRGB, FrameFormat::MJPEG, FrameFormat::YUYV] {
+                let req = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                    CameraFormat::new_from(w, h, fmt, 30),
+                ));
                 debug!(width = w, height = h, ?fmt, "trying camera format");
                 match Camera::new(CameraIndex::Index(0), req) {
                     Ok(c) => {
