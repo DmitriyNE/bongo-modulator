@@ -12,3 +12,4 @@
 - macOS camera tries RAWRGB first and falls back to MJPEG
 - ONNX MaxPool padding now uses reflect mode
 - Resize ops replaced with identity when unsupported
+- Camera attempts multiple formats and enables frame decoding

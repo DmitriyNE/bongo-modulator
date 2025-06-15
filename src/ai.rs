@@ -19,19 +19,28 @@ use tracing::{debug, error};
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
-        let raw = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
-        ));
-        let mjpeg = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-        ));
-        let mut cam = match Camera::new(CameraIndex::Index(0), raw)
-            .or_else(|_| Camera::new(CameraIndex::Index(0), mjpeg))
-            .or_else(|_| Camera::new(CameraIndex::Index(0), format))
-        {
-            Ok(c) => c,
-            Err(e) => {
-                error!("failed to open camera: {e}");
+        let mut cam = None;
+        for (w, h) in [(1280, 720), (640, 480)] {
+            for fmt in [FrameFormat::RAWRGB, FrameFormat::MJPEG, FrameFormat::YUYV] {
+                let req = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                    CameraFormat::new_from(w, h, fmt, 30),
+                ));
+                match Camera::new(CameraIndex::Index(0), req) {
+                    Ok(c) => {
+                        cam = Some(c);
+                        break;
+                    }
+                    Err(_) => continue,
+                }
+            }
+            if cam.is_some() {
+                break;
+            }
+        }
+        let mut cam = match cam.or_else(|| Camera::new(CameraIndex::Index(0), format).ok()) {
+            Some(c) => c,
+            None => {
+                error!("failed to open camera");
                 return;
             }
         };
