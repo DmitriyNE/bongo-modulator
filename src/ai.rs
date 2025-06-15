@@ -1,5 +1,6 @@
+use crate::onnx_eval::simple_eval;
 use candle_core::{DType, Device, Tensor};
-use candle_onnx::{read_file, simple_eval};
+use candle_onnx::read_file;
 use hf_hub::api::sync::Api;
 use image::imageops::FilterType;
 use nokhwa::{
