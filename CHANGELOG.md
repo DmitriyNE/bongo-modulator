@@ -9,4 +9,5 @@
 - `next-image` retrieves frames from the daemon
 - Hyprlock process detection via `--process`
 - Default YOLOv8 model now downloaded from `salim4n/yolov8n-detect-onnx`
-- macOS fallback camera format switched to RAWRGB
+- macOS camera tries RAWRGB first and falls back to MJPEG
+- ONNX MaxPool padding now uses reflect mode

@@ -20,16 +20,37 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
         #[cfg(target_os = "macos")]
-        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
-        ));
-        #[cfg(not(target_os = "macos"))]
-        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-        ));
-        let mut cam = match Camera::new(CameraIndex::Index(0), format)
-            .or_else(|_| Camera::new(CameraIndex::Index(0), fallback))
+        let mut cam = match Camera::new(
+            CameraIndex::Index(0),
+            RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
+            )),
+        )
+        .or_else(|_| {
+            Camera::new(
+                CameraIndex::Index(0),
+                RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                    CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
+                )),
+            )
+        })
+        .or_else(|_| Camera::new(CameraIndex::Index(0), format))
         {
+            Ok(c) => c,
+            Err(e) => {
+                error!("failed to open camera: {e}");
+                return;
+            }
+        };
+        #[cfg(not(target_os = "macos"))]
+        let mut cam = match Camera::new(CameraIndex::Index(0), format).or_else(|_| {
+            Camera::new(
+                CameraIndex::Index(0),
+                RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                    CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
+                )),
+            )
+        }) {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
@@ -190,13 +211,19 @@ fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
                 graph.initializer.push(tensor);
 
                 let pad_output = format!("{}_pad_out", node.name);
-                let pad_node = onnx::NodeProto {
+                let mut pad_node = onnx::NodeProto {
                     input: vec![node.input[0].clone(), pad_init_name],
                     output: vec![pad_output.clone()],
                     name: format!("{}_pad", node.name),
                     op_type: "Pad".to_string(),
                     ..Default::default()
                 };
+                pad_node.attribute.push(onnx::AttributeProto {
+                    name: "mode".to_string(),
+                    r#type: onnx::attribute_proto::AttributeType::String as i32,
+                    s: b"reflect".to_vec(),
+                    ..Default::default()
+                });
                 new_nodes.push(pad_node);
 
                 node.input[0] = pad_output;
