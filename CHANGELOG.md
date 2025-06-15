@@ -13,3 +13,4 @@
 - ONNX MaxPool padding now uses reflect mode
 - Resize ops replaced with identity when unsupported
 - Camera attempts multiple formats and enables frame decoding
+- Pad tensors expanded to match input rank
