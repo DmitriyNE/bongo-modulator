@@ -21,7 +21,7 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
         #[cfg(target_os = "macos")]
         let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::NV12, 30),
+            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
         ));
         #[cfg(not(target_os = "macos"))]
         let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
@@ -40,6 +40,7 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             error!("failed to open camera stream: {e}");
             return;
         }
+        debug!(format = ?cam.camera_format(), "camera stream opened");
 
         let filename = std::env::var("BONGO_YOLO_MODEL")
             .unwrap_or_else(|_| "yolov8n-onnx-web/yolov8n.onnx".to_string());
