@@ -11,8 +11,8 @@
       pkgs = import nixpkgs {
         inherit system;
         overlays = [
-          rust-overlay.overlays.default
           cargo2nix.overlays.default
+          rust-overlay.overlays.default
         ];
       };
       rustToolchain = pkgs.rust-bin.stable.latest.default;
@@ -23,20 +23,33 @@
       rustPkgs = pkgs.rustBuilder.makePackageSet {
         rustToolchain = rustToolchain;
         packageFun = import ./Cargo.nix;
-        packageOverrides = pkgs: pkgs.rustBuilder.overrides.all;
+        packageOverrides = pkgs:
+          pkgs.rustBuilder.overrides.all ++ [
+            (pkgs.rustBuilder.rustLib.makeOverride {
+              name = "v4l2-sys-mit";
+              overrideAttrs = old: {
+                buildInputs = (old.buildInputs or []) ++ [
+                  pkgs.llvmPackages.libclang
+                  pkgs.linuxHeaders
+                ];
+                LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+                BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
+              };
+            })
+          ];
       };
     in {
-      packages.${system}.default = rustPkgs.workspace.bongo-modulator {
-        nativeBuildInputs = [
+      packages.${system}.default = (rustPkgs.workspace.bongo-modulator {}).overrideAttrs (old: {
+        nativeBuildInputs = (old.nativeBuildInputs or []) ++ [
           pkgs.pkg-config
           pkgs.protobuf
           pkgs.llvmPackages.libclang
           pkgs.linuxHeaders
         ];
-        buildInputs = [ pkgs.llvmPackages.libclang pkgs.libv4l ];
+        buildInputs = (old.buildInputs or []) ++ [ pkgs.llvmPackages.libclang pkgs.libv4l ];
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
-        postInstall = ''
+        postInstall = (old.postInstall or "") + ''
           mkdir -p $out/lib/systemd/system
           cat > $out/lib/systemd/system/bongo-modulator.service <<EOF
           [Unit]
@@ -51,7 +64,7 @@
           WantedBy=multi-user.target
           EOF
         '';
-      };
+      });
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [
@@ -83,6 +96,22 @@
         };
         cargoArtifacts = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
       in {
+        fmtCheck = rustPlatform.buildRustPackage {
+          pname = "bongo-modulator-fmt";
+          version = "0";
+          src = self;
+          cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = devInputs;
+          inherit (commonEnv) LIBCLANG_PATH BINDGEN_EXTRA_CLANG_ARGS;
+          CARGO_HOME = cargoArtifacts;
+          doCheck = false;
+          buildPhase = ''
+            cargo fmt --all -- --check
+          '';
+          installPhase = ''
+            touch $out
+          '';
+        };
         clippyCheck = rustPlatform.buildRustPackage {
           pname = "bongo-modulator-clippy";
           version = "0";
@@ -122,5 +151,6 @@
 
       clippyCheck = self.checks.${system}.clippyCheck;
       nextestCheck = self.checks.${system}.nextestCheck;
+      fmtCheck = self.checks.${system}.fmtCheck;
     };
 }

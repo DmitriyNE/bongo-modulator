@@ -53,9 +53,38 @@ The project uses [cargo2nix](https://github.com/cargo2nix/cargo2nix) for
 reproducible builds. Regenerate `Cargo.nix` whenever `Cargo.toml` or
 `Cargo.lock` changes:
 
+The Nix flake bundles the latest stable Rust toolchain (currently 1.87) so
+crates requiring newer compiler features build reliably.
+
 ```bash
 cachix watch-exec bongo-modulator -- \
   cargo2nix --overwrite
 ```
 
-After building, push the results with `cachix push bongo-modulator`.
+Before building ensure your Cachix credentials are configured:
+
+```bash
+cachix authtoken <token>
+```
+
+Build with Nix and upload the artifacts:
+
+```bash
+nix build
+cachix push bongo-modulator result
+```
+
+This keeps the binary cache current for all contributors.
+
+## Development
+
+Enter the dev shell and run the standard checks before committing:
+
+```bash
+nix develop
+cargo fmt --all
+cargo clippy -- -D warnings
+cargo nextest run
+```
+
+You may also run these commands non-interactively with `nix develop -c`.
