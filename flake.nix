@@ -15,7 +15,7 @@
           cargo2nix.overlays.default
         ];
       };
-      rustToolchain = pkgs.rust-bin.stable.latest.default;
+      rustToolchain = pkgs.rust-bin.nightly.latest.default;
       rustPlatform = pkgs.makeRustPlatform {
         cargo = rustToolchain;
         rustc = rustToolchain;
