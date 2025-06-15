@@ -1,6 +1,5 @@
-use crate::onnx_eval::simple_eval;
 use candle_core::{DType, Device, Tensor};
-use candle_onnx::read_file;
+use candle_onnx::{onnx, read_file, simple_eval};
 use hf_hub::api::sync::Api;
 use image::imageops::FilterType;
 use nokhwa::{
@@ -58,13 +57,14 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
                 }
             }
         };
-        let model = match read_file(&model_path) {
+        let mut model = match read_file(&model_path) {
             Ok(m) => m,
             Err(e) => {
                 error!("failed to load model: {e}");
                 return;
             }
         };
+        patch_maxpool_padding(&mut model);
         let graph = match &model.graph {
             Some(g) => g,
             None => {
@@ -156,4 +156,46 @@ fn compute_fps(count: usize, ratio: f32) -> f32 {
     let weight = 20.0;
     let fps = base + weight * ratio * count as f32;
     fps.clamp(0.5, 30.0)
+}
+
+fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
+    let Some(graph) = model.graph.as_mut() else { return; };
+    let mut new_nodes = Vec::with_capacity(graph.node.len());
+    for mut node in std::mem::take(&mut graph.node) {
+        if node.op_type == "MaxPool" {
+            let mut pad_attr = None;
+            for attr in node.attribute.iter_mut() {
+                if attr.name == "pads" {
+                    if attr.ints.iter().any(|&v| v != 0) {
+                        pad_attr = Some(attr.ints.clone());
+                        for v in &mut attr.ints {
+                            *v = 0;
+                        }
+                    }
+                    break;
+                }
+            }
+            if let Some(pads) = pad_attr {
+                let pad_init_name = format!("{}_pads", node.name);
+                let mut tensor = onnx::TensorProto::default();
+                tensor.name = pad_init_name.clone();
+                tensor.dims = vec![pads.len() as i64];
+                tensor.data_type = onnx::tensor_proto::DataType::Int64 as i32;
+                tensor.int64_data = pads.clone();
+                graph.initializer.push(tensor);
+
+                let pad_output = format!("{}_pad_out", node.name);
+                let mut pad_node = onnx::NodeProto::default();
+                pad_node.input = vec![node.input[0].clone(), pad_init_name];
+                pad_node.output = vec![pad_output.clone()];
+                pad_node.name = format!("{}_pad", node.name);
+                pad_node.op_type = "Pad".to_string();
+                new_nodes.push(pad_node);
+
+                node.input[0] = pad_output;
+            }
+        }
+        new_nodes.push(node);
+    }
+    graph.node = new_nodes;
 }
