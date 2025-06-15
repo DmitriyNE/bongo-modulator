@@ -58,4 +58,17 @@ cachix watch-exec bongo-modulator -- \
   cargo2nix --overwrite
 ```
 
-After building, push the results with `cachix push bongo-modulator`.
+Before building ensure your Cachix credentials are configured:
+
+```bash
+cachix authtoken <token>
+```
+
+Build with Nix and upload the artifacts:
+
+```bash
+nix build
+cachix push bongo-modulator result
+```
+
+This keeps the binary cache current for all contributors.
