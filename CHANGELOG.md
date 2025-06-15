@@ -15,3 +15,4 @@
 - Camera tries multiple formats, logging any failures
 - Pad tensors expanded to match input rank
 - NV12 capture removed due to decoding issues
+- Restored nokhwa default features so MJPEG frames decode
