@@ -19,38 +19,16 @@ use tracing::{debug, error};
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
-        #[cfg(target_os = "macos")]
-        let mut cam = match Camera::new(
-            CameraIndex::Index(0),
-            RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-                CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
-            )),
-        )
-        .or_else(|_| {
-            Camera::new(
-                CameraIndex::Index(0),
-                RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-                    CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-                )),
-            )
-        })
-        .or_else(|_| Camera::new(CameraIndex::Index(0), format))
+        let raw = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+            CameraFormat::new_from(1280, 720, FrameFormat::RAWRGB, 30),
+        ));
+        let mjpeg = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
+        ));
+        let mut cam = match Camera::new(CameraIndex::Index(0), raw)
+            .or_else(|_| Camera::new(CameraIndex::Index(0), mjpeg))
+            .or_else(|_| Camera::new(CameraIndex::Index(0), format))
         {
-            Ok(c) => c,
-            Err(e) => {
-                error!("failed to open camera: {e}");
-                return;
-            }
-        };
-        #[cfg(not(target_os = "macos"))]
-        let mut cam = match Camera::new(CameraIndex::Index(0), format).or_else(|_| {
-            Camera::new(
-                CameraIndex::Index(0),
-                RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-                    CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-                )),
-            )
-        }) {
             Ok(c) => c,
             Err(e) => {
                 error!("failed to open camera: {e}");
@@ -86,6 +64,7 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             }
         };
         patch_maxpool_padding(&mut model);
+        patch_resize_identity(&mut model);
         let graph = match &model.graph {
             Some(g) => g,
             None => {
@@ -232,4 +211,19 @@ fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
         new_nodes.push(node);
     }
     graph.node = new_nodes;
+}
+
+fn patch_resize_identity(model: &mut onnx::ModelProto) {
+    let Some(graph) = model.graph.as_mut() else {
+        return;
+    };
+    for node in graph.node.iter_mut() {
+        if node.op_type == "Resize" {
+            if let Some(first) = node.input.first().cloned() {
+                node.op_type = "Identity".to_string();
+                node.input.clear();
+                node.input.push(first);
+            }
+        }
+    }
 }

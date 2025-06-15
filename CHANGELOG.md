@@ -11,3 +11,4 @@
 - Default YOLOv8 model now downloaded from `salim4n/yolov8n-detect-onnx`
 - macOS camera tries RAWRGB first and falls back to MJPEG
 - ONNX MaxPool padding now uses reflect mode
+- Resize ops replaced with identity when unsupported
