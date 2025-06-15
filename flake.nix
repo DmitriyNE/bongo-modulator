@@ -23,7 +23,16 @@
       rustPkgs = pkgs.rustBuilder.makePackageSet {
         rustToolchain = rustToolchain;
         packageFun = import ./Cargo.nix;
-        packageOverrides = pkgs: pkgs.rustBuilder.overrides.all;
+        packageOverrides = pkgs: pkgs.rustBuilder.overrides.all // {
+          v4l2-sys-mit = old: {
+            buildInputs = (old.buildInputs or []) ++ [
+              pkgs.llvmPackages.libclang
+              pkgs.linuxHeaders
+            ];
+            LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.linuxHeaders}/include -I${pkgs.glibc.dev}/include";
+          };
+        };
       };
     in {
       packages.${system}.default = (rustPkgs.workspace.bongo-modulator {}).overrideAttrs (old: {

@@ -75,3 +75,16 @@ cachix push bongo-modulator result
 ```
 
 This keeps the binary cache current for all contributors.
+
+## Development
+
+Enter the dev shell and run the standard checks before committing:
+
+```bash
+nix develop
+cargo fmt --all
+cargo clippy -- -D warnings
+cargo nextest run
+```
+
+You may also run these commands non-interactively with `nix develop -c`.
