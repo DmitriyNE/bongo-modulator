@@ -23,7 +23,8 @@ jobs:
         run: nix flake check
 
       - name: Build package
-        run: nix build .#default
+        # Build the main bongo-modulator derivation
+        run: nix build .#packages.x86_64-linux.default
 
       - name: Check formatting
         run: nix develop --command cargo fmt --all -- --check
