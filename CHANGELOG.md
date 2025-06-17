@@ -9,4 +9,9 @@
 - `next-image` retrieves frames from the daemon
 - Hyprlock process detection via `--process`
 - Default YOLOv8 model now downloaded from `salim4n/yolov8n-detect-onnx`
-- macOS fallback camera format switched to MJPEG
+- macOS camera tries RAWRGB first and falls back to MJPEG
+- ONNX MaxPool padding now uses reflect mode
+- Resize ops replaced with identity when unsupported
+- Camera tries multiple formats, logging any failures
+- Pad tensors expanded to match input rank
+- NV12 capture removed due to decoding issues

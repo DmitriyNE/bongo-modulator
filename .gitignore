@@ -1,1 +1,5 @@
 /target
+// Generated state and build-output files
+state.json
+/result
+/result-bin

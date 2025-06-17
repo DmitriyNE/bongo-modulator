@@ -23,6 +23,8 @@
       rustPkgs = pkgs.rustBuilder.makePackageSet {
         rustToolchain = rustToolchain;
         packageFun = import ./Cargo.nix;
+        # enforce strict Cargo.nix vs Cargo.lock matching for reproducibility
+        ignoreLockHash = false;
         packageOverrides = pkgs:
           pkgs.rustBuilder.overrides.all ++ [
             (pkgs.rustBuilder.rustLib.makeOverride {
@@ -70,6 +72,8 @@
         buildInputs = [
           rustToolchain
           pkgs.cargo-nextest
+          # regenerate Cargo.nix as needed
+          cargo2nix.packages.${system}.default
           pkgs.pkg-config
           pkgs.protobuf
           pkgs.llvmPackages.libclang

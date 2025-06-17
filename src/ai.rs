@@ -19,20 +19,37 @@ use tracing::{debug, error};
 pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::None);
-        #[cfg(target_os = "macos")]
-        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-        ));
-        #[cfg(not(target_os = "macos"))]
-        let fallback = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
-            CameraFormat::new_from(1280, 720, FrameFormat::MJPEG, 30),
-        ));
-        let mut cam = match Camera::new(CameraIndex::Index(0), format)
-            .or_else(|_| Camera::new(CameraIndex::Index(0), fallback))
-        {
-            Ok(c) => c,
-            Err(e) => {
-                error!("failed to open camera: {e}");
+        let mut cam = None;
+        let mut last_err = None;
+        for (w, h) in [(1280, 720), (640, 480)] {
+            for fmt in [FrameFormat::RAWRGB, FrameFormat::MJPEG, FrameFormat::YUYV] {
+                let req = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                    CameraFormat::new_from(w, h, fmt, 30),
+                ));
+                debug!(width = w, height = h, ?fmt, "trying camera format");
+                match Camera::new(CameraIndex::Index(0), req) {
+                    Ok(c) => {
+                        cam = Some(c);
+                        break;
+                    }
+                    Err(e) => {
+                        debug!(width = w, height = h, ?fmt, error = ?e, "camera format failed");
+                        last_err = Some(e);
+                    }
+                }
+            }
+            if cam.is_some() {
+                break;
+            }
+        }
+        let mut cam = match cam.or_else(|| Camera::new(CameraIndex::Index(0), format).ok()) {
+            Some(c) => c,
+            None => {
+                if let Some(e) = last_err {
+                    error!("failed to open camera: {e}");
+                } else {
+                    error!("failed to open camera");
+                }
                 return;
             }
         };
@@ -65,6 +82,8 @@ pub fn spawn_ai_thread(fps: Arc<AtomicU32>, enabled: Arc<AtomicBool>) {
             }
         };
         patch_maxpool_padding(&mut model);
+        patch_resize_identity(&mut model);
+        patch_pad_tensors(&mut model);
         let graph = match &model.graph {
             Some(g) => g,
             None => {
@@ -159,7 +178,9 @@ fn compute_fps(count: usize, ratio: f32) -> f32 {
 }
 
 fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
-    let Some(graph) = model.graph.as_mut() else { return; };
+    let Some(graph) = model.graph.as_mut() else {
+        return;
+    };
     let mut new_nodes = Vec::with_capacity(graph.node.len());
     for mut node in std::mem::take(&mut graph.node) {
         if node.op_type == "MaxPool" {
@@ -177,19 +198,30 @@ fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
             }
             if let Some(pads) = pad_attr {
                 let pad_init_name = format!("{}_pads", node.name);
-                let mut tensor = onnx::TensorProto::default();
-                tensor.name = pad_init_name.clone();
-                tensor.dims = vec![pads.len() as i64];
-                tensor.data_type = onnx::tensor_proto::DataType::Int64 as i32;
-                tensor.int64_data = pads.clone();
+                let full_pads = vec![0, 0, pads[0], pads[1], 0, 0, pads[2], pads[3]];
+                let tensor = onnx::TensorProto {
+                    name: pad_init_name.clone(),
+                    dims: vec![full_pads.len() as i64],
+                    data_type: onnx::tensor_proto::DataType::Int64 as i32,
+                    int64_data: full_pads.clone(),
+                    ..Default::default()
+                };
                 graph.initializer.push(tensor);
 
                 let pad_output = format!("{}_pad_out", node.name);
-                let mut pad_node = onnx::NodeProto::default();
-                pad_node.input = vec![node.input[0].clone(), pad_init_name];
-                pad_node.output = vec![pad_output.clone()];
-                pad_node.name = format!("{}_pad", node.name);
-                pad_node.op_type = "Pad".to_string();
+                let mut pad_node = onnx::NodeProto {
+                    input: vec![node.input[0].clone(), pad_init_name],
+                    output: vec![pad_output.clone()],
+                    name: format!("{}_pad", node.name),
+                    op_type: "Pad".to_string(),
+                    ..Default::default()
+                };
+                pad_node.attribute.push(onnx::AttributeProto {
+                    name: "mode".to_string(),
+                    r#type: onnx::attribute_proto::AttributeType::String as i32,
+                    s: b"reflect".to_vec(),
+                    ..Default::default()
+                });
                 new_nodes.push(pad_node);
 
                 node.input[0] = pad_output;
@@ -198,4 +230,37 @@ fn patch_maxpool_padding(model: &mut onnx::ModelProto) {
         new_nodes.push(node);
     }
     graph.node = new_nodes;
+}
+
+fn patch_resize_identity(model: &mut onnx::ModelProto) {
+    let Some(graph) = model.graph.as_mut() else {
+        return;
+    };
+    for node in graph.node.iter_mut() {
+        if node.op_type == "Resize" {
+            if let Some(first) = node.input.first().cloned() {
+                node.op_type = "Identity".to_string();
+                node.input.clear();
+                node.input.push(first);
+            }
+        }
+    }
+}
+
+fn patch_pad_tensors(model: &mut onnx::ModelProto) {
+    let Some(graph) = model.graph.as_mut() else {
+        return;
+    };
+    for node in graph.node.iter() {
+        if node.op_type == "Pad" && node.input.len() >= 2 {
+            let pad_name = &node.input[1];
+            if let Some(init) = graph.initializer.iter_mut().find(|i| i.name == *pad_name) {
+                if init.int64_data.len() == 4 {
+                    let pads = init.int64_data.clone();
+                    init.int64_data = vec![0, 0, pads[0], pads[1], 0, 0, pads[2], pads[3]];
+                    init.dims = vec![8];
+                }
+            }
+        }
+    }
 }

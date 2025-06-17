@@ -11,6 +11,9 @@ jobs:
     environment: CI
     steps:
       - uses: actions/checkout@v4
+        # checkout the PR branch itself (not the merge commit) so Cargo.nix/Cargo.lock stay in sync
+        with:
+          ref: ${{ github.head_ref }}
 
       - uses: DeterminateSystems/nix-installer-action@v17
 
@@ -23,7 +26,8 @@ jobs:
         run: nix flake check
 
       - name: Build package
-        run: nix build .#default
+        # Build the main bongo-modulator derivation
+        run: nix build .#packages.x86_64-linux.default
 
       - name: Check formatting
         run: nix develop --command cargo fmt --all -- --check
