@@ -20,4 +20,4 @@ hf-hub = { version = "0.4.2", default-features = false, features = ["ureq"] }
 [dev-dependencies]
 proptest = "1"
 tempfile = "3"
-serial_test = "2"
+serial_test = "3"
