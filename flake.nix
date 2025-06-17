@@ -23,8 +23,8 @@
       rustPkgs = pkgs.rustBuilder.makePackageSet {
         rustToolchain = rustToolchain;
         packageFun = import ./Cargo.nix;
-        # override lock-hash verification: set BONGO_IGNORE_LOCK_HASH=1 for local dev
-        ignoreLockHash = builtins.getEnv "BONGO_IGNORE_LOCK_HASH" == "1";
+        # enforce strict Cargo.nix vs Cargo.lock matching for reproducibility
+        ignoreLockHash = false;
         packageOverrides = pkgs:
           pkgs.rustBuilder.overrides.all ++ [
             (pkgs.rustBuilder.rustLib.makeOverride {

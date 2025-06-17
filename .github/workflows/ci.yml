@@ -9,9 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     environment: CI
-    # allow CI to bypass Cargo.nix vs Cargo.lock strict matching
-    env:
-      BONGO_IGNORE_LOCK_HASH: "1"
     steps:
       - uses: actions/checkout@v4
 
