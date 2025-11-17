@@ -15,7 +15,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: DeterminateSystems/nix-installer-action@v21
 
       - uses: cachix/cachix-action@v16
         with:
