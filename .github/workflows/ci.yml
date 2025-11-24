@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: CI
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         # checkout the PR branch itself (not the merge commit) so Cargo.nix/Cargo.lock stay in sync
         with:
           ref: ${{ github.head_ref }}
